@@ -222,6 +222,9 @@ class NativeWindowMac : public NativeWindow, public ui::NativeThemeObserver {
   // setWindowButtonVisibility().
   base::Optional<bool> window_button_visibility_;
 
+  // Maximizable window state; necessary for persistence through redraws.
+  bool maximizable_ = true;
+
   // Simple (pre-Lion) Fullscreen Settings
   bool always_simple_fullscreen_ = false;
   bool is_simple_fullscreen_ = false;

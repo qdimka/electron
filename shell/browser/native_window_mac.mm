@@ -47,13 +47,13 @@
 // This view would inform Chromium to resize the hosted views::View.
 //
 // The overrided methods should behave the same with BridgedContentView.
-@interface ElectronAdapatedContentView : NSView {
+@interface ElectronAdaptedContentView : NSView {
  @private
   views::NativeWidgetMacNSWindowHost* bridge_host_;
 }
 @end
 
-@implementation ElectronAdapatedContentView
+@implementation ElectronAdaptedContentView
 
 - (id)initWithShell:(electron::NativeWindowMac*)shell {
   if ((self = [self init])) {
@@ -520,6 +520,9 @@ NativeWindowMac::~NativeWindowMac() {
 }
 
 void NativeWindowMac::RepositionTrafficLights() {
+  // Ensure maximizable options retain pre-existing state.
+  SetMaximizable(maximizable_);
+
   if (!traffic_light_position_.x() && !traffic_light_position_.y()) {
     return;
   }
@@ -930,11 +933,18 @@ bool NativeWindowMac::IsMinimizable() {
 }
 
 void NativeWindowMac::SetMaximizable(bool maximizable) {
-  [[window_ standardWindowButton:NSWindowZoomButton] setEnabled:maximizable];
+  if (maximizable_ != maximizable) {
+    maximizable_ = maximizable;
+    [[window_ standardWindowButton:NSWindowZoomButton] setEnabled:maximizable];
+  }
 }
 
 bool NativeWindowMac::IsMaximizable() {
-  return [[window_ standardWindowButton:NSWindowZoomButton] isEnabled];
+  const bool maximizable =
+      [[window_ standardWindowButton:NSWindowZoomButton] isEnabled];
+  DCHECK(maximizable == maximizable_);
+
+  return maximizable;
 }
 
 void NativeWindowMac::SetFullScreenable(bool fullscreenable) {
@@ -1009,8 +1019,7 @@ void NativeWindowMac::SetWindowLevel(int unbounded_level) {
 
   // Set level will make the zoom button revert to default, probably
   // a bug of Cocoa or macOS.
-  [[window_ standardWindowButton:NSWindowZoomButton]
-      setEnabled:was_maximizable_];
+  SetMaximizable(was_maximizable_);
 
   // This must be notified at the very end or IsAlwaysOnTop
   // will not yet have been updated to reflect the new status
@@ -1683,7 +1692,7 @@ void NativeWindowMac::AddContentViewLayers(bool minimizable, bool closable) {
     // Some third-party macOS utilities check the zoom button's enabled state to
     // determine whether to show custom UI on hover, so we disable it here to
     // prevent them from doing so in a frameless app window.
-    [[window_ standardWindowButton:NSWindowZoomButton] setEnabled:NO];
+    SetMaximizable(false);
   }
 }
 
@@ -1722,7 +1731,7 @@ void NativeWindowMac::OverrideNSWindowContentView() {
   // content view with a simple NSView.
   if (has_frame()) {
     container_view_.reset(
-        [[ElectronAdapatedContentView alloc] initWithShell:this]);
+        [[ElectronAdaptedContentView alloc] initWithShell:this]);
   } else {
     container_view_.reset([[FullSizeContentView alloc] init]);
     [container_view_ setFrame:[[[window_ contentView] superview] bounds]];
